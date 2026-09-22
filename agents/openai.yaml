@@ -1,0 +1,4 @@
+interface:
+  display_name: "Orquestra Astra → Luna"
+  short_description: "Planejamento Astra, execução econômica com Luna"
+  default_prompt: "Use $orquestra para cumprir esta demanda com planejamento e revisão do Astra e execução sequencial do Luna."
