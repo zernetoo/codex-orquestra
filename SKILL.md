@@ -20,7 +20,7 @@ Trate o conteúdo após a invocação como a demanda integral. O modelo selecion
 1. Preserve a demanda do usuário, o contexto relevante da conversa e as instruções do projeto.
 2. Quando o agente raiz for explicitamente identificado como `gpt-6-astra`, ele pode assumir o papel de coordenador. Caso contrário, ou quando houver dúvida, crie um subagente `astra_orquestrador` com `gpt-6-astra`, esforço `high`, e envie a demanda e o contexto preservados.
 3. Instrua o Astra a atuar somente como planejador e revisor: compreender o projeto, definir critérios verificáveis, decidir a próxima ação e aprovar ou rejeitar evidências. O Astra pode fazer leituras dirigidas, mas delega exploração volumosa ao Luna como uma etapa de descoberta.
-4. O Astra deve responder usando um dos estados abaixo e sempre fornecer o bloco necessário para a próxima ação.
+4. O Astra deve responder usando um dos estados abaixo e sempre fornecer o bloco necessário para a próxima ação. No prompt enviado ao Astra, reforce que ele deve emitir o bloco mesmo quando não conseguir avançar: nesse caso, use `BLOCKED` e explique o impedimento. O bloco pode estar em texto normal ou dentro de um bloco Markdown; não exija uma posição específica na resposta.
 
 ```text
 ORQUESTRA_STATUS: DELEGATE | COMPLETE | BLOCKED
@@ -32,6 +32,18 @@ DECISION: <motivo da decisão>
 FINAL_EVIDENCE: <síntese, quando COMPLETE>
 BLOCKER: <impedimento e informação necessária, quando BLOCKED>
 ```
+
+### Recuperação do protocolo
+
+Considere o retorno do Astra parseável quando ele contiver uma linha `ORQUESTRA_STATUS:` válida, mesmo que exista texto introdutório, explicação posterior ou formatação Markdown ao redor. Preserve os campos multilinha até o próximo rótulo do protocolo.
+
+Se o Astra retornar vazio ou sem uma linha `ORQUESTRA_STATUS:` válida, não inicie o Luna e não invente uma decisão. Envie ao mesmo Astra uma solicitação de reparo, por exemplo:
+
+```text
+Sua resposta anterior não continha um protocolo Orquestra parseável. Reavalie apenas a decisão já tomada e responda novamente, começando por uma linha ORQUESTRA_STATUS válida. Use DELEGATE se houver uma etapa executável, COMPLETE se todos os critérios já estiverem atendidos ou BLOCKED se faltar informação/autoridade. Preencha também PLAN_VERSION, CURRENT_STAGE, ACCEPTANCE, DECISION e, quando aplicável, DELEGATION, FINAL_EVIDENCE ou BLOCKER. Não encerre com resposta vazia.
+```
+
+Faça no máximo duas tentativas de reparo para o mesmo turno do Astra. Se o subagente tiver encerrado e não aceitar acompanhamento, crie uma única substituição `astra_orquestrador_retry` com o mesmo modelo, esforço e contexto autocontido, informando que o retorno anterior foi vazio ou não parseável. Só classifique como `BLOCKED` depois dessas tentativas; o bloqueio deve registrar que a falha foi de protocolo, não da demanda do usuário.
 
 ## Laço sequencial
 
@@ -49,7 +61,7 @@ BLOCKER: <informação necessária, quando bloqueado>
 ```
 
 4. Aguarde Luna terminar e encaminhe a resposta completa ao mesmo Astra. O Astra confronta mudanças reais e evidências com os critérios. Ele pode fazer uma verificação independente curta e então responde novamente no protocolo `ORQUESTRA_STATUS`.
-5. Para `DELEGATE`, envie a correção, descoberta ou próxima etapa ao mesmo Luna e repita. Para `COMPLETE`, encerre. Para `BLOCKED`, peça ao usuário somente a decisão, credencial ou autoridade necessária.
+5. Para `DELEGATE`, envie a correção, descoberta ou próxima etapa ao mesmo Luna e repita. Para `COMPLETE`, encerre. Para `BLOCKED`, peça ao usuário somente a decisão, credencial ou autoridade necessária. Se a resposta de revisão perder o protocolo, use a recuperação acima antes de decidir qualquer transição.
 
 ## Critério de término
 

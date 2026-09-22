@@ -68,3 +68,13 @@ agents/openai.yaml
 ```
 
 O gatilho foi deliberadamente limitado a `/orquestra` e `$orquestra`, para que tarefas comuns não ativem o fluxo por acidente.
+
+## Solução de problemas
+
+Se aparecer uma mensagem dizendo que o Astra encerrou sem retornar o protocolo, atualize a skill e tente novamente em uma conversa nova. A versão atual faz até duas tentativas de reparo do protocolo antes de bloquear; ela não inicia o Luna enquanto não houver uma decisão explícita do Astra.
+
+Para atualizar uma instalação global, execute novamente:
+
+```text
+$skill-installer instale a skill da raiz de https://github.com/zernetoo/codex-orquestra
+```
